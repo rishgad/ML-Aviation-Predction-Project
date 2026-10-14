@@ -4,12 +4,16 @@ Predict `INDICATED_DAMAGE` (1 = damage, 0 = no damage) from FAA wildlife-strike 
 
 The pipeline uses temporal validation (`INCIDENT_YEAR == 2015` held out), Optuna hyper-parameter tuning, threshold sweeping for Balanced Accuracy, and a stacked ensemble of LightGBM / CatBoost / XGBoost / TF-IDF logistic regression.
 
+## Contribution
+
+Rishav Gadiyar contributed across the pipeline, including preprocessing, feature engineering, modeling, tuning, and validation.
+
 ## Repository contents
 
 | File | Purpose |
 |---|---|
 | `build_notebook.py` | Generator script that builds `damage_prediction.ipynb` programmatically via `nbformat`. |
-| `damage_prediction.ipynb` | Full executed notebook with EDA, cleaning, feature engineering, modeling, interpretability, and submission. |
+| `damage_prediction.ipynb` | Full notebook with EDA, cleaning, feature engineering, modeling, interpretability, and submission. |
 | `submission.csv` | Final predictions for the test set, ready to upload. |
 | `submission_v2_catboost.csv` | Backup submission from a non-TF-IDF run. |
 | `requirements.txt` | Pinned Python dependencies. |
@@ -22,8 +26,8 @@ The pipeline uses temporal validation (`INCIDENT_YEAR == 2015` held out), Optuna
 Requires Python **3.11**.
 
 ```bash
-git clone https://github.com/RishiNatarajan05/MLProjectSP2026.git
-cd MLProjectSP2026
+git clone https://github.com/rishgad/ML-Aviation-Predction-Project.git
+cd ML-Aviation-Predction-Project
 
 # create venv and install dependencies
 python3.11 -m venv .venv
@@ -52,7 +56,7 @@ jupyter nbconvert --to notebook \
                   --ExecutePreprocessor.timeout=3600
 ```
 
-This produces `submission.csv` in the working directory. Total runtime is roughly **20–30 minutes** on a laptop CPU.
+This produces `submission.csv` in the working directory. Runtime depends on the dataset, hardware, and tuning configuration.
 
 If you prefer interactive use, open the notebook directly:
 
@@ -75,7 +79,7 @@ and run **Cell → Run All**.
 
 ## Reproducibility
 
-All random seeds are pinned to `42`. Optuna uses `TPESampler(seed=42)`. Boosters are seeded identically. Pandas / sklearn versions are pinned in `requirements.txt`. Re-running the pipeline on the same data should yield byte-identical predictions.
+All random seeds are pinned to `42`. Optuna uses `TPESampler(seed=42)`. Boosters are seeded identically. Pandas / sklearn versions are pinned in `requirements.txt`. Exact results can still vary with hardware, library versions, and parallel execution. The committed notebook currently contains no saved execution outputs; rerun it to inspect validation results.
 
 ## Caveats
 
