@@ -18,3 +18,7 @@ sample_submission.csv
 exec.log
 *.log
 .DS_Store
+
+results/
+.venv/
+__pycache__/

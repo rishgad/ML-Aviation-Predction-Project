@@ -39,8 +39,8 @@ Rishav Gadiyar contributed across preprocessing, feature engineering, model deve
 ## Run the final notebook
 
 ```sh
-git clone https://github.com/rishgad/ML-Aviation-Predction-Project.git
-cd ML-Aviation-Predction-Project
+git clone https://github.com/rishgad/ML-Aviation-Prediction-Project.git
+cd ML-Aviation-Prediction-Project
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
@@ -49,12 +49,12 @@ python -m pip install -r requirements.txt
 Obtain the original competition data separately and place `train.csv` and `test.csv` in the repository root. Those files are not included in the repository.
 
 ```sh
-jupyter nbconvert --to notebook --execute damage_prediction.ipynb \
-  --output damage_prediction.executed.ipynb \
-  --ExecutePreprocessor.timeout=7200
+python scripts/reproduce.py --data-dir . --output-dir results
 ```
 
-The notebook writes `submission.csv`. The separate executed notebook preserves the checked-in source while retaining run outputs. Package compatibility and runtime depend on the Python environment and hardware.
+Use Python 3.12+ for the pinned environment. The runner executes the final notebook and saves `metrics.json`, `inputs.json` with dataset and source hashes, and an executed notebook under `results/`. Metrics include the confusion matrix, accuracy, balanced accuracy, ROC-AUC, recall, thresholds, and installed package versions. The notebook writes `submission.csv` in the data directory, replacing any existing prediction file there.
+
+The competition URL and original CSVs are still unavailable; the runner does not substitute another FAA dataset. No newly reproduced scores are claimed. Keep raw data and generated outputs local until competition redistribution rules are known.
 
 ## Repository contents
 
