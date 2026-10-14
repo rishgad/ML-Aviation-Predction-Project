@@ -1,86 +1,73 @@
-# FAA Wildlife Strike Damage — Binary Classification
+# Wildlife Strike Damage Classification
 
-Predict `INDICATED_DAMAGE` (1 = damage, 0 = no damage) from FAA wildlife-strike incident records. Scoring metric is **Balanced Accuracy** (mean of per-class recall).
+Predict aircraft damage from FAA wildlife-strike incident records using structured features, text features, and a five-model ensemble. The final notebook records **90.32% validation balanced accuracy**, compared with **87.04%** for the initial CatBoost model.
 
-The pipeline uses temporal validation (`INCIDENT_YEAR == 2015` held out), Optuna hyper-parameter tuning, threshold sweeping for Balanced Accuracy, and a stacked ensemble of LightGBM / CatBoost / XGBoost / TF-IDF logistic regression.
+## Results
+
+Validation uses the **2015 incidents**: 12,402 rows, with pre-2015 incidents forming the training pool. These figures are recorded in the notebook's written results summary; they have not been independently reproduced in this documentation update.
+
+| Metric | Recorded result |
+|---|---:|
+| Balanced accuracy | **90.32%** |
+| Accuracy | Approximately 90.84% |
+| ROC-AUC | Approximately 0.9602 |
+| Recall on damage class | Approximately 89.8% |
+| Specificity on no-damage class | Approximately 90.9% |
+
+| Version | Change | Validation balanced accuracy |
+|---|---|---:|
+| Initial model | CatBoost with default class weights | 87.04% |
+| Class balancing | Balanced CatBoost class weights | 88.79% |
+| Boosted blend | Add LightGBM and three-fold bagging | 89.73% |
+| Feature and model expansion | Add Naive Bayes, regex keywords, and Apriori features | 89.90% |
+| Final thresholds | Use thresholds by flight phase | **90.32%** |
+
+The recorded improvement is **3.28 percentage points** over the initial model. Thresholds and ensemble weights were selected using the 2015 validation labels, so these are tuning-set results, not scores from an untouched final test set or a competition leaderboard.
+
+## Technical approach
+
+- Repair Excel-corrupted count ranges and handle missing numerical and categorical values.
+- Engineer TF-IDF text features, regex damage-keyword flags, and Apriori-mined association-rule features.
+- Train CatBoost, LightGBM, Multinomial Naive Bayes, Bernoulli Naive Bayes, and logistic regression with three-fold out-of-fold predictions on pre-2015 data.
+- Combine base predictions using an L2 logistic stacker and a convex-weight blend search.
+- Tune global and flight-phase-specific decision thresholds for balanced accuracy. Small flight-phase groups fall back to the global threshold.
 
 ## Contribution
 
-Rishav Gadiyar contributed across the pipeline, including preprocessing, feature engineering, modeling, tuning, and validation.
+Rishav Gadiyar contributed across preprocessing, feature engineering, model development, tuning, validation, and prediction generation.
+
+## Run the final notebook
+
+```sh
+git clone https://github.com/rishgad/ML-Aviation-Predction-Project.git
+cd ML-Aviation-Predction-Project
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Obtain the original competition data separately and place `train.csv` and `test.csv` in the repository root. Those files are not included in the repository.
+
+```sh
+jupyter nbconvert --to notebook --execute damage_prediction.ipynb \
+  --output damage_prediction.executed.ipynb \
+  --ExecutePreprocessor.timeout=7200
+```
+
+The notebook writes `submission.csv`. The separate executed notebook preserves the checked-in source while retaining run outputs. Package compatibility and runtime depend on the Python environment and hardware.
 
 ## Repository contents
 
 | File | Purpose |
 |---|---|
-| `build_notebook.py` | Generator script that builds `damage_prediction.ipynb` programmatically via `nbformat`. |
-| `damage_prediction.ipynb` | Full notebook with EDA, cleaning, feature engineering, modeling, interpretability, and submission. |
-| `submission.csv` | Final predictions for the test set, ready to upload. |
-| `submission_v2_catboost.csv` | Backup submission from a non-TF-IDF run. |
-| `requirements.txt` | Pinned Python dependencies. |
-| `.gitignore` | Excludes `.venv/`, large CSVs, and execution logs. |
+| `damage_prediction.ipynb` | Final five-model ensemble pipeline and recorded results summary |
+| `build_notebook.py` | Earlier notebook generator using a different modeling pipeline; do not run it to reproduce the final notebook |
+| `requirements.txt` | Dependency versions |
+| `submission.csv` | Saved test predictions; labels alone cannot establish prediction accuracy |
+| `submission_v2_catboost.csv` | Additional saved prediction file |
 
-`train.csv`, `test.csv`, and `sample_submission.csv` are **not** committed (each is over GitHub's file-size limit). Download them from the competition page and drop them in the repo root before running.
+## Limitations and reproducibility
 
-## Setup
+The notebook currently has no saved metric outputs, and the execution log contains only a notebook-conversion message. Reproducing the recorded scores requires the original data and a completed run. Random seeds are fixed, but byte-identical results across environments are not guaranteed.
 
-Requires Python **3.11**.
-
-```bash
-git clone https://github.com/rishgad/ML-Aviation-Predction-Project.git
-cd ML-Aviation-Predction-Project
-
-# create venv and install dependencies
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-Place the competition data in the repo root:
-
-```
-./train.csv
-./test.csv
-./sample_submission.csv
-```
-
-## Running the pipeline
-
-End-to-end (regenerate notebook from `build_notebook.py`, then execute it):
-
-```bash
-python build_notebook.py
-jupyter nbconvert --to notebook \
-                  --execute damage_prediction.ipynb \
-                  --output damage_prediction.ipynb \
-                  --ExecutePreprocessor.timeout=3600
-```
-
-This produces `submission.csv` in the working directory. Runtime depends on the dataset, hardware, and tuning configuration.
-
-If you prefer interactive use, open the notebook directly:
-
-```bash
-jupyter lab damage_prediction.ipynb
-```
-
-and run **Cell → Run All**.
-
-## What the notebook does
-
-1. **Setup & Load** — imports, seeding (`SEED = 42`), data loading.
-2. **EDA** — target distribution, missingness, damage rate by phase / species / airport / height / etc.
-3. **Cleaning** — century-aware date parsing, Excel-corrupted `NUM_STRUCK` reverse-mapping, multi-hot precipitation, 99.5th-percentile clipping with `log1p` copies, median imputation within `PHASE_OF_FLIGHT`, missingness indicators, `TIME` → hour.
-4. **Feature engineering** — frequency + 5-fold smoothed target-mean encodings for high-cardinality categoricals, cyclical month / hour, day of week, mass × size and phase × height interactions, engine count, species / airport historical damage rate, hand-crafted text features and TF-IDF over `REMARKS + COMMENTS`.
-5. **Modeling** — balanced logistic baseline, LightGBM, CatBoost (native categorical handling), XGBoost, TF-IDF logistic regression, MLP with `alpha` tuning, plus an honest "clean-features-only" LightGBM. Each model is tuned with Optuna (≥ 30 trials) and has its decision threshold swept on the 2015 fold.
-6. **Model comparison table** — Balanced Accuracy at the default and tuned thresholds, ROC-AUC, PR-AUC.
-7. **Interpretability** — top-30 LightGBM importances and a SHAP summary plot on a 5 000-row validation sample.
-8. **Final fit & submission** — refit the winning model on all 1990–2015 training rows with frozen hyper-parameters, apply the threshold picked on 2015, write `submission.csv`.
-
-## Reproducibility
-
-All random seeds are pinned to `42`. Optuna uses `TPESampler(seed=42)`. Boosters are seeded identically. Pandas / sklearn versions are pinned in `requirements.txt`. Exact results can still vary with hardware, library versions, and parallel execution. The committed notebook currently contains no saved execution outputs; rerun it to inspect validation results.
-
-## Caveats
-
-A handful of features (`REMARKS`, `COMMENTS`, `REMAINS_*`, `BIRD_BAND_NUMBER`) are populated post-event by investigators and effectively leak the label. They are present in `test.csv` and competition-legal, so the main model uses them. The "clean-features-only" LightGBM in the comparison table quantifies the gap if you wanted an operational pre-event model instead.
+Some text and investigator fields are populated after the incident and can reveal damage information. These results describe incident-record classification and should not be interpreted as demonstrated pre-incident risk prediction. Training-fold out-of-fold predictions support the stacker, but selecting thresholds and ensemble weights on 2015 can still overfit that validation set.
